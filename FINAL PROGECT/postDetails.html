@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SocialHub — Post</title>
+
+  <script src="./node_modules/bootstrap/dist/js/bootstrap.min.js"></script>
+  <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.min.css">
+  <script src="./node_modules/axios/dist/axios.min.js"></script>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+  <!-- LOADER -->
+  <div id="loader" style="visibility:hidden;">
+    <div class="lds-roller">
+      <div></div><div></div><div></div><div></div>
+      <div></div><div></div><div></div><div></div>
+    </div>
+  </div>
+
+  <!-- MODALS -->
+  <!-- LOGIN -->
+  <div class="modal fade" id="login-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Login</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body px-4 py-3">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Username</label>
+            <input type="text" class="form-control" id="username-input" value="abdalluh">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Password</label>
+            <input type="password" class="form-control" id="password-input" value="123456">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="sh-btn sh-btn-outline" data-bs-dismiss="modal">Cancel</button>
+          <button class="sh-btn sh-btn-primary" onclick="LoginBtnClicked()">Login</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REGISTER -->
+  <div class="modal fade" id="register-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Create Account</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body px-4 py-3">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Profile Image</label>
+            <input type="file" class="form-control" id="register-image-input">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Full Name</label>
+            <input type="text" class="form-control" id="register-name-input">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Username</label>
+            <input type="text" class="form-control" id="register-username-input">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Password</label>
+            <input type="password" class="form-control" id="register-password-input">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="sh-btn sh-btn-outline" data-bs-dismiss="modal">Cancel</button>
+          <button class="sh-btn sh-btn-primary" onclick="RegisterBtnClicked()">Register</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- END MODALS -->
+
+  <!-- ALERTS -->
+  <div id="success-alert"></div>
+
+  <!-- NAVBAR -->
+  <nav class="sh-nav">
+    <div class="container">
+      <a class="sh-nav-brand" href="home.html">SocialHub</a>
+
+      <ul class="sh-nav-links">
+        <li><a href="home.html">Home</a></li>
+        <li><a onclick="profileClicked()" style="cursor:pointer;">Profile</a></li>
+      </ul>
+
+      <div class="sh-nav-right" id="logged-in-div">
+        <button class="sh-btn sh-btn-success-outline sh-btn-sm"
+          data-bs-toggle="modal" data-bs-target="#login-modal">Login</button>
+        <button class="sh-btn sh-btn-outline sh-btn-sm"
+          data-bs-toggle="modal" data-bs-target="#register-modal">Register</button>
+      </div>
+
+      <div class="sh-nav-right" id="logout-div">
+        <img id="nav-user-image" class="sh-nav-avatar" src="" alt="">
+        <span class="sh-nav-username" id="nav-username"></span>
+        <button class="sh-btn sh-btn-danger-outline sh-btn-sm" onclick="logout()">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main class="sh-page" style="padding-top:24px;">
+    <div id="post">
+      <!-- postDetails script fills this -->
+    </div>
+  </main>
+
+  <script src="./mainLogic.js"></script>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search)
+    const id = urlParams.get("postId")
+
+    setupUI()
+    getPost()
+
+    function getPost() {
+      toggleLoader(true)
+      axios.get(`${baseUrl}/posts/${id}`)
+        .then((response) => {
+          toggleLoader(false)
+          const post = response.data.data
+          const comments = post.comments
+          const author = post.author
+
+          const postImage = typeof post.image === 'string' ? post.image : ''
+          const authorImage = typeof author.profile_image === 'string'
+            ? author.profile_image
+            : `https://ui-avatars.com/api/?name=${encodeURIComponent(author.username)}`
+
+          let postTitle = post.title ?? ''
+
+          // Build comments HTML
+          let commentsHtml = ''
+          for (let c of comments) {
+            const cImg = typeof c.author.profile_image === 'string'
+              ? c.author.profile_image
+              : `https://ui-avatars.com/api/?name=${encodeURIComponent(c.author.username)}`
+            commentsHtml += `
+              <div class="sh-comment">
+                <img class="sh-comment-avatar"
+                  src="${cImg}"
+                  onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(c.author.username)}'"
+                  alt="">
+                <div class="sh-comment-content">
+                  <div class="sh-comment-author">@${c.author.username}</div>
+                  <div class="sh-comment-body">${c.body}</div>
+                </div>
+              </div>`
+          }
+
+          const postContent = `
+            <div class="sh-card">
+              <div class="sh-card-header">
+                <div class="sh-card-header-left">
+                  <img class="sh-post-avatar"
+                    src="${authorImage}"
+                    onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(author.username)}'"
+                    alt="">
+                  <span class="sh-post-username">@${author.username}</span>
+                </div>
+              </div>
+
+              <div class="sh-card-body" style="cursor:default;">
+                ${postImage ? `<img class="sh-post-image" src="${postImage}" onerror="this.style.display='none'" alt="">` : ''}
+                <p class="sh-post-date">${post.created_at}</p>
+                ${postTitle ? `<h5 class="sh-post-title">${postTitle}</h5>` : ''}
+                <p class="sh-post-body">${post.body}</p>
+              </div>
+
+              <div class="sh-card-footer">
+                <span class="sh-comments-label">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4.414A2 2 0 0 0 3 11.586l-2 2V2a1 1 0 0 1 1-1h12z"/>
+                  </svg>
+                  ${post.comments_count} Comments
+                </span>
+              </div>
+
+              <div class="sh-comments-section">
+                ${commentsHtml}
+                <div class="sh-add-comment" id="add-comment-div">
+                  <input id="comment-input" type="text"
+                    class="sh-comment-input"
+                    placeholder="Write a comment…">
+                  <button class="sh-btn sh-btn-primary sh-btn-sm" onclick="createCommentClicked()">Send</button>
+                </div>
+              </div>
+            </div>`
+
+          document.getElementById("post").innerHTML = postContent
+        })
+        .catch((error) => {
+          toggleLoader(false)
+          console.error("Error fetching post:", error)
+        })
+    }
+
+    function createCommentClicked() {
+      const commentBody = document.getElementById("comment-input").value
+      const token = localStorage.getItem("token")
+      toggleLoader(true)
+      axios.post(`${baseUrl}/posts/${id}/comments`, { body: commentBody }, {
+        headers: { "Authorization": `Bearer ${token}` }
+      })
+        .then(() => {
+          toggleLoader(false)
+          getPost()
+          showAlert("Comment added", "success")
+        })
+        .catch((error) => {
+          toggleLoader(false)
+          showAlert(error.response.data.message, "danger")
+        })
+    }
+  </script>
+</body>
+</html>
